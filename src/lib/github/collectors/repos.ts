@@ -18,12 +18,22 @@ import { getConfig } from "@/lib/config";
 const DETAIL_BATCH_SIZE = 25;
 const DETAIL_CONCURRENCY = 6;
 
+export type PullRequestRuleParams = {
+  requiredApprovingReviewCount: number | null;
+  requireCodeOwnerReview: boolean;
+  dismissStaleReviewsOnPush: boolean;
+  requireLastPushApproval: boolean;
+};
+
 export type RulesetSummary = {
   name: string;
   enforcement: string;
   target: string;
   databaseId: number | null;
   source: string;
+  /** Uppercase rule types, e.g. DELETION, NON_FAST_FORWARD, PULL_REQUEST. */
+  ruleTypes: string[];
+  pullRequest: PullRequestRuleParams | null;
 };
 
 export type BranchProtection = {
@@ -114,13 +124,26 @@ const LIST_QUERY = `
 
 type TreeObject = { entries?: { name: string; type: string }[] } | null;
 
+type RulesetNode = {
+  name: string;
+  enforcement: string;
+  target: string;
+  databaseId: number | null;
+  source: unknown;
+  rules: {
+    nodes:
+      | ({ type: string; parameters: ({ __typename: string } & Partial<PullRequestRuleParams>) | null } | null)[]
+      | null;
+  } | null;
+};
+
 type DetailNode = {
   name: string;
   isSecurityPolicyEnabled: boolean;
   hasVulnerabilityAlertsEnabled: boolean;
   codeowners: { errors: { kind: string; line: number; message: string; path: string }[] } | null;
   defaultBranchRef: { name: string; branchProtectionRule: BranchProtection | null } | null;
-  rulesets: { nodes: (RulesetSummary & { source: unknown })[] | null } | null;
+  rulesets: { nodes: (RulesetNode | null)[] | null } | null;
   dotGithub: TreeObject;
   workflowsDir: TreeObject;
 };
@@ -149,7 +172,23 @@ const DETAIL_FIELDS = `
     }
   }
   rulesets(first: 20, includeParents: true) {
-    nodes { name enforcement target databaseId source { __typename } }
+    nodes {
+      name enforcement target databaseId source { __typename }
+      rules(first: 30) {
+        nodes {
+          type
+          parameters {
+            __typename
+            ... on PullRequestParameters {
+              requiredApprovingReviewCount
+              requireCodeOwnerReview
+              dismissStaleReviewsOnPush
+              requireLastPushApproval
+            }
+          }
+        }
+      }
+    }
   }
   dotGithub: object(expression: "HEAD:.github") { ... on Tree { entries { name type } } }
   workflowsDir: object(expression: "HEAD:.github/workflows") { ... on Tree { entries { name type } } }
@@ -173,17 +212,31 @@ function rulesetProtects(rulesets: RulesetSummary[]): boolean {
 
 function toSummary(list: ListNode, detail: DetailNode | null): RepoSummary {
   const rulesets: RulesetSummary[] = (detail?.rulesets?.nodes ?? [])
-    .filter((r): r is NonNullable<typeof r> => r != null)
-    .map((r) => ({
-      name: r.name,
-      enforcement: r.enforcement,
-      target: r.target,
-      databaseId: r.databaseId ?? null,
-      source:
-        typeof r.source === "object" && r.source !== null && "__typename" in r.source
-          ? String((r.source as { __typename: string }).__typename)
-          : "Unknown",
-    }));
+    .filter((r): r is RulesetNode => r != null)
+    .map((r) => {
+      const rules = (r.rules?.nodes ?? []).filter((n): n is NonNullable<typeof n> => n != null);
+      const pr = rules.find((n) => n.parameters?.__typename === "PullRequestParameters");
+
+      return {
+        name: r.name,
+        enforcement: r.enforcement,
+        target: r.target,
+        databaseId: r.databaseId ?? null,
+        source:
+          typeof r.source === "object" && r.source !== null && "__typename" in r.source
+            ? String((r.source as { __typename: string }).__typename)
+            : "Unknown",
+        ruleTypes: rules.map((n) => n.type),
+        pullRequest: pr?.parameters
+          ? {
+              requiredApprovingReviewCount: pr.parameters.requiredApprovingReviewCount ?? null,
+              requireCodeOwnerReview: pr.parameters.requireCodeOwnerReview ?? false,
+              dismissStaleReviewsOnPush: pr.parameters.dismissStaleReviewsOnPush ?? false,
+              requireLastPushApproval: pr.parameters.requireLastPushApproval ?? false,
+            }
+          : null,
+      };
+    });
 
   const branchProtection = detail?.defaultBranchRef?.branchProtectionRule ?? null;
   const protectionSource: ProtectionSource = branchProtection
