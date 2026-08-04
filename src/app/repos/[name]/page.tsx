@@ -4,11 +4,23 @@ import { getRepoDetail } from "@/lib/github/collectors/repoDetail";
 import { isConfigured } from "@/lib/config";
 import { SetupNotice } from "@/components/SetupNotice";
 import { RefreshButton } from "@/components/RefreshButton";
-import { Badge, Card, EmptyState, Td, Th, UnavailableNotice, formatAge } from "@/components/ui";
+import {
+  Badge,
+  Card,
+  EmptyState,
+  Td,
+  Th,
+  UnavailableNotice,
+  formatAge,
+  type Tone,
+} from "@/components/ui";
+import { computeScore, type Grade } from "@/lib/score";
 import { WorkflowList } from "./WorkflowList";
 import { RulesetList } from "./RulesetList";
 
 export const dynamic = "force-dynamic";
+
+const SCORE_TONE: Record<Grade, Tone> = { A: "ok", B: "ok", C: "warn", D: "warn", F: "bad" };
 
 function ProtectionSummary({
   protection,
@@ -87,6 +99,19 @@ export default async function RepoDetailPage({ params }: PageProps<"/repos/[name
     ? collaborators.data.filter((c) => c.admin)
     : [];
 
+  // The detail page knows more than the org scan does, so score with everything.
+  const score = computeScore({
+    repo: summary,
+    actionRefs: { total: allUses.length, unpinned: unpinned.length },
+    security: security.available
+      ? {
+          secretScanning: security.data.secretScanning === "enabled",
+          pushProtection: security.data.secretScanningPushProtection === "enabled",
+        }
+      : undefined,
+    adminCollaborators: collaborators.available ? admins.length : undefined,
+  });
+
   return (
     <div className="space-y-5">
       <div className="flex flex-wrap items-end justify-between gap-4">
@@ -134,6 +159,35 @@ export default async function RepoDetailPage({ params }: PageProps<"/repos/[name
         </Badge>
         {admins.length > 0 && <Badge tone="warn">{admins.length} admin collaborator(s)</Badge>}
       </div>
+
+      <Card
+        title="Security score"
+        subtitle={`${score.earnedWeight} of ${score.applicableWeight} applicable weight · unknown checks are excluded`}
+        actions={
+          <Badge tone={SCORE_TONE[score.grade]}>
+            {score.grade} · {score.percent}%
+          </Badge>
+        }
+      >
+        <ul className="grid gap-1 px-4 py-3 sm:grid-cols-2 lg:grid-cols-3">
+          {score.checks.map((c) => (
+            <li
+              key={c.id}
+              className="flex items-start justify-between gap-2 rounded-lg border border-border bg-surface-2 px-3 py-2 text-xs"
+            >
+              <span>
+                <span className="block">{c.label}</span>
+                <span className="text-muted">{c.detail}</span>
+              </span>
+              <Badge
+                tone={c.status === "pass" ? "ok" : c.status === "fail" ? "bad" : "muted"}
+              >
+                {c.status}
+              </Badge>
+            </li>
+          ))}
+        </ul>
+      </Card>
 
       <Card
         title="Workflows and actions"
