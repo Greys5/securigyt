@@ -31,18 +31,31 @@ const throttle = {
   },
 };
 
-let appClient: GitHubClient | null = null;
+let primaryClient: GitHubClient | null = null;
 
 export function getOctokit(): GitHubClient {
-  if (appClient) return appClient;
-  const { appId, privateKey, installationId } = getConfig();
+  if (primaryClient) return primaryClient;
+  const { auth } = getConfig();
 
-  appClient = new SecuriGitOctokit({
-    authStrategy: createAppAuth,
-    auth: { appId, privateKey, installationId },
-    throttle,
-  });
-  return appClient;
+  primaryClient =
+    auth.mode === "app"
+      ? new SecuriGitOctokit({
+          authStrategy: createAppAuth,
+          auth: {
+            appId: auth.appId,
+            privateKey: auth.privateKey,
+            installationId: auth.installationId,
+          },
+          throttle,
+        })
+      : new SecuriGitOctokit({ auth: auth.token, throttle });
+
+  return primaryClient;
+}
+
+/** Which credential the primary client is using — surfaced in the setup doctor. */
+export function authMode(): "app" | "token" {
+  return getConfig().auth.mode;
 }
 
 let fallbackClient: GitHubClient | null = null;

@@ -6,7 +6,7 @@
  */
 
 import { getConfig, ConfigError } from "@/lib/config";
-import { getOctokit, getFallbackOctokit } from "@/lib/github/client";
+import { getOctokit, getFallbackOctokit, authMode } from "@/lib/github/client";
 
 type Status = "ok" | "fail" | "skip";
 
@@ -51,15 +51,23 @@ async function main() {
   }
 
   const org = config.org;
-  console.log(`\nSecuriGit setup check — org: ${org}\n`);
+  const mode = authMode();
+  console.log(`\nSecuriGit setup check — org: ${org} — auth: ${mode}\n`);
 
   const octokit = getOctokit();
 
   // Authentication itself.
-  await probe("Auth", "App installation token", async () => {
-    const { data } = await octokit.rest.apps.getAuthenticated();
-    return `authenticated as app "${data?.name ?? "unknown"}"`;
-  });
+  if (mode === "app") {
+    await probe("Auth", "App installation token", async () => {
+      const { data } = await octokit.rest.apps.getAuthenticated();
+      return `authenticated as app "${data?.name ?? "unknown"}"`;
+    });
+  } else {
+    await probe("Auth", "Personal access token", async () => {
+      const { data } = await octokit.rest.users.getAuthenticated();
+      return `authenticated as ${data.login} (a GitHub App gives higher rate limits)`;
+    });
+  }
 
   await probe("Auth", "Rate limit", async () => {
     const { data } = await octokit.rest.rateLimit.get();
