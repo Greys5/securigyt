@@ -79,7 +79,7 @@ export default async function OrgPage() {
       </div>
 
       {members.available && (
-        <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+        <div className="grid grid-cols-2 overflow-hidden rounded-lg border border-border bg-surface shadow-[var(--shadow)] md:grid-cols-4">
           <Stat label="Members" value={members.data.total} tone="info" />
           <Stat
             label="Owners"

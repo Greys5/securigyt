@@ -14,13 +14,31 @@ import {
   formatAge,
   type Tone,
 } from "@/components/ui";
-import { computeScore, type Grade } from "@/lib/score";
+import { computeScore, type CheckId, type Grade } from "@/lib/score";
+import { repositoryAuditHrefForCheck } from "@/lib/remediationLinks";
 import { WorkflowList } from "./WorkflowList";
 import { RulesetList } from "./RulesetList";
 
 export const dynamic = "force-dynamic";
 
 const SCORE_TONE: Record<Grade, Tone> = { A: "ok", B: "ok", C: "warn", D: "warn", F: "bad" };
+
+const CHECK_ACTION: Partial<Record<CheckId, string>> = {
+  "branch-protected": "Protect branch",
+  "force-push-blocked": "Block force push",
+  "deletion-blocked": "Block deletion",
+  "review-required": "Require review",
+  "code-owner-review": "Require owners",
+  "codeowners-present": "Add CODEOWNERS",
+  "codeowners-valid": "Fix CODEOWNERS",
+  "dependabot-alerts": "Enable alerts",
+  "security-policy": "Create policy PR",
+  "actions-pinned": "Pin actions",
+  "secret-scanning": "Enable scanning",
+  "push-protection": "Enable protection",
+  "no-admin-collaborators": "Review access",
+  "no-severe-alerts": "Review alerts",
+};
 
 function ProtectionSummary({
   protection,
@@ -169,21 +187,26 @@ export default async function RepoDetailPage({ params }: PageProps<"/repos/[name
           </Badge>
         }
       >
-        <ul className="grid gap-1 px-4 py-3 sm:grid-cols-2 lg:grid-cols-3">
+        <ul className="divide-y divide-border">
           {score.checks.map((c) => (
             <li
               key={c.id}
-              className="flex items-start justify-between gap-2 rounded-lg border border-border bg-surface-2 px-3 py-2 text-xs"
+              className="grid items-center gap-3 px-4 py-2.5 text-xs sm:grid-cols-[minmax(180px,1fr)_minmax(220px,1.4fr)_auto_auto]"
             >
-              <span>
-                <span className="block">{c.label}</span>
-                <span className="text-muted">{c.detail}</span>
-              </span>
+              <span className="font-medium">{c.label}</span>
+              <span className="text-muted">{c.detail}</span>
               <Badge
                 tone={c.status === "pass" ? "ok" : c.status === "fail" ? "bad" : "muted"}
               >
                 {c.status}
               </Badge>
+              {c.status === "fail" ? (
+                <Link href={repositoryAuditHrefForCheck(c.id, summary.name)} className="whitespace-nowrap text-[11px] font-medium text-info hover:underline">
+                  {CHECK_ACTION[c.id] ?? "Review finding"}
+                </Link>
+              ) : (
+                <span className="text-[11px] text-muted">No action</span>
+              )}
             </li>
           ))}
         </ul>

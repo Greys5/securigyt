@@ -1,27 +1,95 @@
 @import "tailwindcss";
 
-:root {
-  --background: #0b0e14;
-  --surface: #11151f;
-  --surface-2: #161b28;
-  --border: #232b3d;
-  --foreground: #e6e9f0;
-  --muted: #8b93a7;
+:root,
+[data-theme="light"] {
+  color-scheme: light;
+  --background: #f4f6f8;
+  --surface: #ffffff;
+  --surface-2: #f6f8fa;
+  --surface-3: #eef2f6;
+  --border: #d9e0e7;
+  --border-strong: #c5ced8;
+  --foreground: #152033;
+  --muted: #667085;
+  --subtle: #8b95a7;
+  --sidebar: #111b2b;
+  --sidebar-hover: #1b293d;
+  --sidebar-text: #d6deea;
+  --sidebar-muted: #91a0b5;
+  --ok: #16866b;
+  --warn: #b66b08;
+  --bad: #d13d46;
+  --info: #2563d9;
+  --accent: #0f6b83;
+  --focus: #2c72e8;
+  --chart-grid: #e5e9ef;
+  --shadow: 0 1px 2px rgb(15 23 42 / 0.06);
+}
 
-  --ok: #3fb950;
-  --warn: #d29922;
-  --bad: #f85149;
-  --info: #58a6ff;
-  --accent: #a371f7;
+[data-theme="dark"] {
+  color-scheme: dark;
+  --background: #0c111b;
+  --surface: #121a27;
+  --surface-2: #182231;
+  --surface-3: #1e2a3b;
+  --border: #29364a;
+  --border-strong: #3a4a61;
+  --foreground: #e7ecf3;
+  --muted: #98a5b8;
+  --subtle: #748198;
+  --sidebar: #080d15;
+  --sidebar-hover: #162132;
+  --sidebar-text: #dce4ef;
+  --sidebar-muted: #8290a6;
+  --ok: #3bc5a0;
+  --warn: #e6a23c;
+  --bad: #ff696f;
+  --info: #6ca4ff;
+  --accent: #46b3ca;
+  --focus: #79adff;
+  --chart-grid: #263246;
+  --shadow: 0 1px 2px rgb(0 0 0 / 0.3);
+}
+
+[data-theme="hacker"] {
+  color-scheme: dark;
+  --background: #020603;
+  --surface: #061009;
+  --surface-2: #0a170d;
+  --surface-3: #102417;
+  --border: #163b22;
+  --border-strong: #236536;
+  --foreground: #c9f7d4;
+  --muted: #70ad7e;
+  --subtle: #4d8059;
+  --sidebar: #010402;
+  --sidebar-hover: #0b1d10;
+  --sidebar-text: #b8f5c7;
+  --sidebar-muted: #5f9d6d;
+  --ok: #35e86f;
+  --warn: #d8c84c;
+  --bad: #ff5c69;
+  --info: #4ee780;
+  --accent: #20d65a;
+  --focus: #66ff8d;
+  --chart-grid: #14331d;
+  --shadow: 0 0 0 1px rgb(32 214 90 / 0.04);
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-surface: var(--surface);
   --color-surface-2: var(--surface-2);
+  --color-surface-3: var(--surface-3);
   --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
   --color-foreground: var(--foreground);
   --color-muted: var(--muted);
+  --color-subtle: var(--subtle);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-hover: var(--sidebar-hover);
+  --color-sidebar-text: var(--sidebar-text);
+  --color-sidebar-muted: var(--sidebar-muted);
   --color-ok: var(--ok);
   --color-warn: var(--warn);
   --color-bad: var(--bad);
@@ -31,14 +99,62 @@
   --font-mono: var(--font-geist-mono);
 }
 
+* {
+  border-color: var(--border);
+}
+
+html {
+  background: var(--background);
+}
+
 body {
+  min-width: 320px;
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  font-size: 14px;
 }
 
-/* Tables are dense by design — this app is for scanning many repos at once. */
+button,
+input,
+select,
+a {
+  outline: none;
+}
+
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+a:focus-visible {
+  box-shadow: 0 0 0 2px var(--background), 0 0 0 4px var(--focus);
+}
+
 table {
   border-collapse: separate;
   border-spacing: 0;
+}
+
+::selection {
+  background: color-mix(in srgb, var(--info) 28%, transparent);
+}
+
+* {
+  scrollbar-color: var(--border-strong) transparent;
+  scrollbar-width: thin;
+}
+
+[data-theme="hacker"] body {
+  font-family: var(--font-geist-mono), ui-monospace, monospace;
+  letter-spacing: -0.01em;
+}
+
+.metric-divider + .metric-divider {
+  border-left: 1px solid var(--border);
+}
+
+@media (max-width: 900px) {
+  .metric-divider + .metric-divider {
+    border-left: 0;
+    border-top: 1px solid var(--border);
+  }
 }

@@ -112,6 +112,14 @@ Open http://localhost:3000.
 | `/actions` | Org-wide action inventory: action → versions → repos, drill-down to each usage site, flagged workflows |
 | `/org` | Org security defaults, Actions policy, org rulesets, installed apps, fine-grained PATs, webhooks, owners |
 | `/security` | Grade distribution, per-control coverage, Dependabot / code scanning / secret scanning rollups, audit log, costs |
+| `/reports/governance` | Searchable repository protection, CODEOWNERS and bypass evidence; HTML and CSV exports |
+| `/assessment` | CSA/STAR evidence domains, STRIDE and secure SDLC views, remediation guidance and CSV evidence |
+
+Assessment mappings support audit preparation. They do not establish certification. Snapshot timestamps indicate evidence age; approval enforcement depends on branch scope, CODEOWNERS matching, and bypass permissions.
+
+## Git workflow
+
+The baseline lives on `main`. Create a separate branch for each feature or fix, using the Jira ticket ID when provided or a descriptive change name, and merge reviewed changes into `main`.
 
 ## Security score
 

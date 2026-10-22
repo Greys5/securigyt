@@ -32,7 +32,7 @@ export default async function ActionsPage() {
         <RefreshButton scopes={["repo-workflows"]} />
       </div>
 
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+      <div className="grid grid-cols-2 overflow-hidden rounded-lg border border-border bg-surface shadow-[var(--shadow)] md:grid-cols-4">
         <Stat label="Distinct actions" value={inv.distinctActions} tone="info" />
         <Stat label="Action references" value={inv.totalRefs} tone="info" />
         <Stat

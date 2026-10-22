@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { repositoryAuditHrefForCheck } from "@/lib/remediationLinks";
 import { getPosture } from "@/lib/github/collectors/posture";
 import { SEVERITIES, type AlertsSummary, type RepoAlertCounts } from "@/lib/github/collectors/security";
 import { isConfigured } from "@/lib/config";
@@ -141,7 +142,7 @@ export default async function SecurityPage() {
         />
       </div>
 
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+      <div className="grid grid-cols-2 overflow-hidden rounded-lg border border-border bg-surface shadow-[var(--shadow)] md:grid-cols-4">
         <Stat
           label="Average score"
           value={`${posture.averagePercent}%`}
@@ -213,6 +214,7 @@ export default async function SecurityPage() {
                   <Th>Control</Th>
                   <Th>Passing</Th>
                   <Th>Failing</Th>
+                  <Th>Next step</Th>
                 </tr>
               </thead>
               <tbody>
@@ -243,6 +245,11 @@ export default async function SecurityPage() {
                         ) : (
                           <span className="text-muted">0</span>
                         )}
+                      </Td>
+                      <Td>
+                        <Link href={repositoryAuditHrefForCheck(c.id)} className="text-[11px] font-medium text-info hover:underline">
+                          Review remediation
+                        </Link>
                       </Td>
                     </tr>
                   );

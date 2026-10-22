@@ -18,6 +18,7 @@ function repo(overrides: Partial<RepoSummary> = {}): RepoSummary {
     workflowFiles: [],
     hasCodeowners: false,
     codeownersErrorCount: 0,
+    codeowners: null,
     hasSecurityPolicy: false,
     dependabotAlertsEnabled: false,
     branchProtection: null,
@@ -57,6 +58,9 @@ describe("computeScore", () => {
             dismissStaleReviewsOnPush: false,
             requireLastPushApproval: false,
           },
+          includes: ["~DEFAULT_BRANCH"],
+          excludes: [],
+          bypassActors: [],
         },
       ],
     });
@@ -119,6 +123,9 @@ describe("computeScore", () => {
             dismissStaleReviewsOnPush: false,
             requireLastPushApproval: false,
           },
+          includes: ["~DEFAULT_BRANCH"],
+          excludes: [],
+          bypassActors: [],
         },
       ],
     });
@@ -140,6 +147,9 @@ describe("computeScore", () => {
           source: "Repository",
           ruleTypes: ["DELETION", "NON_FAST_FORWARD"],
           pullRequest: null,
+          includes: ["~DEFAULT_BRANCH"],
+          excludes: [],
+          bypassActors: [],
         },
       ],
     });

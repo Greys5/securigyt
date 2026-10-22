@@ -5,8 +5,8 @@
  *   1. cheap paginated listing (100 repos/query) -> names and basic metadata
  *   2. aliased detail batches (25 repos/query) run concurrently -> security facts
  *
- * Nothing here is per-repo-sequential, and nothing fetches file *contents*;
- * that stays lazy on the repo detail page.
+ * Nothing here is per-repo-sequential. The only file contents fetched in the
+ * inventory are the three supported CODEOWNERS locations, inside the same batches.
  */
 
 import pLimit from "p-limit";
@@ -14,6 +14,7 @@ import { getOctokit } from "@/lib/github/client";
 import { runGraphql, chunk, aliasFor, type GraphqlResult } from "@/lib/github/graphql";
 import { cached, type CachedValue } from "@/lib/cache";
 import { getConfig } from "@/lib/config";
+import { parseCodeowners, type CodeownerRule } from "@/lib/parse/codeowners";
 
 const DETAIL_BATCH_SIZE = 25;
 const DETAIL_CONCURRENCY = 6;
@@ -34,6 +35,26 @@ export type RulesetSummary = {
   /** Uppercase rule types, e.g. DELETION, NON_FAST_FORWARD, PULL_REQUEST. */
   ruleTypes: string[];
   pullRequest: PullRequestRuleParams | null;
+  includes: string[];
+  excludes: string[];
+  bypassActors: RulesetBypassActor[];
+};
+
+export type RulesetBypassActor = {
+  actorType: string;
+  actorName: string;
+  bypassMode: string;
+};
+
+export type CodeownersSummary = {
+  path: string;
+  ruleCount: number;
+  owners: string[];
+  teams: string[];
+  users: string[];
+  emails: string[];
+  rules: CodeownerRule[];
+  truncated: boolean;
 };
 
 export type BranchProtection = {
@@ -71,6 +92,7 @@ export type RepoSummary = {
 
   hasCodeowners: boolean;
   codeownersErrorCount: number;
+  codeowners: CodeownersSummary | null;
 
   hasSecurityPolicy: boolean;
   dependabotAlertsEnabled: boolean;
@@ -123,6 +145,17 @@ const LIST_QUERY = `
 `;
 
 type TreeObject = { entries?: { name: string; type: string }[] } | null;
+type TextBlob = { text: string | null; isTruncated: boolean } | null;
+
+type BypassActorNode = {
+  actor: ({ __typename: string; name?: string; slug?: string; login?: string } | null);
+  bypassMode: string;
+  deployKey: boolean;
+  enterpriseOwner: boolean;
+  enterpriseRole: boolean;
+  organizationAdmin: boolean;
+  repositoryRoleName: string | null;
+};
 
 type RulesetNode = {
   name: string;
@@ -130,6 +163,8 @@ type RulesetNode = {
   target: string;
   databaseId: number | null;
   source: unknown;
+  conditions: { refName: { include: string[]; exclude: string[] } | null };
+  bypassActors: { nodes: (BypassActorNode | null)[] | null } | null;
   rules: {
     nodes:
       | ({ type: string; parameters: ({ __typename: string } & Partial<PullRequestRuleParams>) | null } | null)[]
@@ -146,6 +181,9 @@ type DetailNode = {
   rulesets: { nodes: (RulesetNode | null)[] | null } | null;
   dotGithub: TreeObject;
   workflowsDir: TreeObject;
+  codeownersDotGithub: TextBlob;
+  codeownersRoot: TextBlob;
+  codeownersDocs: TextBlob;
 };
 
 const DETAIL_FIELDS = `
@@ -174,6 +212,18 @@ const DETAIL_FIELDS = `
   rulesets(first: 20, includeParents: true) {
     nodes {
       name enforcement target databaseId source { __typename }
+      conditions { refName { include exclude } }
+      bypassActors(first: 100) {
+        nodes {
+          bypassMode deployKey enterpriseOwner enterpriseRole organizationAdmin repositoryRoleName
+          actor {
+            __typename
+            ... on App { name slug }
+            ... on Team { name slug }
+            ... on User { login }
+          }
+        }
+      }
       rules(first: 30) {
         nodes {
           type
@@ -192,7 +242,24 @@ const DETAIL_FIELDS = `
   }
   dotGithub: object(expression: "HEAD:.github") { ... on Tree { entries { name type } } }
   workflowsDir: object(expression: "HEAD:.github/workflows") { ... on Tree { entries { name type } } }
+  codeownersDotGithub: object(expression: "HEAD:.github/CODEOWNERS") { ... on Blob { text isTruncated } }
+  codeownersRoot: object(expression: "HEAD:CODEOWNERS") { ... on Blob { text isTruncated } }
+  codeownersDocs: object(expression: "HEAD:docs/CODEOWNERS") { ... on Blob { text isTruncated } }
 `;
+
+function bypassActorLabel(node: BypassActorNode): RulesetBypassActor {
+  const actor = node.actor;
+  if (actor) {
+    const actorName = actor.slug ?? actor.login ?? actor.name ?? actor.__typename;
+    return { actorType: actor.__typename, actorName, bypassMode: node.bypassMode };
+  }
+  if (node.organizationAdmin) return { actorType: "OrganizationAdmin", actorName: "Organization admins", bypassMode: node.bypassMode };
+  if (node.enterpriseOwner) return { actorType: "EnterpriseOwner", actorName: "Enterprise owners", bypassMode: node.bypassMode };
+  if (node.enterpriseRole) return { actorType: "EnterpriseRole", actorName: "Enterprise role", bypassMode: node.bypassMode };
+  if (node.deployKey) return { actorType: "DeployKey", actorName: "Deploy keys", bypassMode: node.bypassMode };
+  if (node.repositoryRoleName) return { actorType: "RepositoryRole", actorName: node.repositoryRoleName, bypassMode: node.bypassMode };
+  return { actorType: "Unknown", actorName: "Unknown actor", bypassMode: node.bypassMode };
+}
 
 function buildDetailQuery(names: string[]): string {
   const selections = names
@@ -235,6 +302,11 @@ function toSummary(list: ListNode, detail: DetailNode | null): RepoSummary {
               requireLastPushApproval: pr.parameters.requireLastPushApproval ?? false,
             }
           : null,
+        includes: r.conditions?.refName?.include ?? [],
+        excludes: r.conditions?.refName?.exclude ?? [],
+        bypassActors: (r.bypassActors?.nodes ?? [])
+          .filter((actor): actor is BypassActorNode => actor != null)
+          .map(bypassActorLabel),
       };
     });
 
@@ -249,6 +321,20 @@ function toSummary(list: ListNode, detail: DetailNode | null): RepoSummary {
   const workflowFiles = (detail?.workflowsDir?.entries ?? [])
     .filter((e) => e.type === "blob" && /\.ya?ml$/i.test(e.name))
     .map((e) => e.name);
+  const codeownersBlob = detail
+    ? ([
+        [".github/CODEOWNERS", detail.codeownersDotGithub],
+        ["CODEOWNERS", detail.codeownersRoot],
+        ["docs/CODEOWNERS", detail.codeownersDocs],
+      ] as const).find(([, blob]) => blob != null)
+    : undefined;
+  const codeowners = codeownersBlob?.[1]?.text
+    ? {
+        path: codeownersBlob[0],
+        ...parseCodeowners(codeownersBlob[1].text),
+        truncated: codeownersBlob[1].isTruncated,
+      }
+    : null;
 
   return {
     name: list.name,
@@ -267,6 +353,7 @@ function toSummary(list: ListNode, detail: DetailNode | null): RepoSummary {
 
     hasCodeowners: detail?.codeowners != null,
     codeownersErrorCount: detail?.codeowners?.errors.length ?? 0,
+    codeowners,
 
     hasSecurityPolicy: detail?.isSecurityPolicyEnabled ?? false,
     dependabotAlertsEnabled: detail?.hasVulnerabilityAlertsEnabled ?? false,

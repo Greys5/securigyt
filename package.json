@@ -17,11 +17,13 @@
     "@octokit/plugin-rest-endpoint-methods": "^18.0.0",
     "@octokit/plugin-retry": "^8.1.1",
     "@octokit/plugin-throttling": "^11.0.5",
+    "@phosphor-icons/react": "^2.1.10",
     "better-sqlite3": "^13.0.2",
     "next": "16.3.0",
     "p-limit": "^7.3.1",
     "react": "19.2.8",
     "react-dom": "19.2.8",
+    "recharts": "^3.10.1",
     "yaml": "^2.9.0"
   },
   "devDependencies": {

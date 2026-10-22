@@ -14,6 +14,7 @@ import { cached, type CachedValue } from "@/lib/cache";
 import { getConfig } from "@/lib/config";
 import { parseWorkflow, type ParsedWorkflow } from "@/lib/parse/workflow";
 import { getRepoInventory, type RepoSummary } from "@/lib/github/collectors/repos";
+import { parseCodeowners } from "@/lib/parse/codeowners";
 
 /** Checked in order; the first hit is the one GitHub honours. */
 const CODEOWNERS_PATHS = [".github/CODEOWNERS", "CODEOWNERS", "docs/CODEOWNERS"];
@@ -115,23 +116,6 @@ ${workflowSelections}
   `;
 }
 
-/** Owner handles referenced by a CODEOWNERS file, de-duplicated. */
-function extractOwners(text: string): { ruleCount: number; owners: string[] } {
-  const owners = new Set<string>();
-  let ruleCount = 0;
-
-  for (const line of text.split("\n")) {
-    const trimmed = line.trim();
-    if (!trimmed || trimmed.startsWith("#")) continue;
-    ruleCount += 1;
-    for (const token of trimmed.split(/\s+/).slice(1)) {
-      if (token.startsWith("@") || token.includes("@")) owners.add(token);
-    }
-  }
-
-  return { ruleCount, owners: [...owners].sort() };
-}
-
 async function fetchDetail(repoName: string): Promise<RepoDetail> {
   const { org } = getConfig();
   const octokit = getOctokit();
@@ -161,7 +145,7 @@ async function fetchDetail(repoName: string): Promise<RepoDetail> {
   for (let i = 0; i < CODEOWNERS_PATHS.length; i += 1) {
     const blob = repoContents?.[`co${i}`];
     if (blob?.text) {
-      codeowners = { path: CODEOWNERS_PATHS[i], text: blob.text, ...extractOwners(blob.text) };
+      codeowners = { path: CODEOWNERS_PATHS[i], text: blob.text, ...parseCodeowners(blob.text) };
       break;
     }
   }
