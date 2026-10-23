@@ -15,22 +15,33 @@ It answers org-wide questions without clicking through repositories one at a tim
 
 ## How it stays fast
 
-A 190-repo organization resolves in seconds, and instantly after the first load:
+The Python backend batches GitHub queries and stores results in SQLite:
 
 | Pass | Cost |
 | --- | --- |
-| Repo listing (100 repos per GraphQL query) | ~2s per 100 repos |
-| Repo security facts (25 repos per aliased query, 6 concurrent) | ~14s for 190 repos |
-| Workflow contents (8 repos × their files per query, 5 concurrent) | ~10s for 178 workflows |
-| Any warm page load | ~1ms from the SQLite cache |
+| Repo listing | 100 repos per GraphQL query |
+| Repo security facts | 25 repos per aliased query, up to 6 concurrent |
+| Workflow contents | 8 repos per aliased query, up to 5 concurrent |
+| Warm page load | SQLite cache with scope-specific freshness |
 
-Expensive per-repo work (workflow file contents, collaborators, ruleset details) is fetched
-**lazily when you open that repo**, never eagerly for the whole org. Every page has a Refresh
-button that invalidates just its own cache scope.
+Workflow contents are batched for the Actions inventory. Collaborators and detailed repository
+rulesets are fetched **when you open a repository**. Every page has a Refresh button that
+invalidates its relevant cache scopes.
 
 ## Setup
 
-### 1. Credentials
+### 1. Install runtimes
+
+Python 3.15.1 is selected by `.python-version`. Install it with `pyenv`, then create the project environment:
+
+```bash
+pyenv install -s 3.15.1
+uv venv --python "$(pyenv which python)" .venv
+uv pip install --python .venv/bin/python -r backend/requirements.txt
+npm ci
+```
+
+### 2. Credentials
 
 Copy the example env file:
 
@@ -75,32 +86,33 @@ billing endpoints reject GitHub App installation tokens. Set `GITHUB_FALLBACK_PA
 PAT with `admin:org` (and `manage_billing:*` for costs) to enable those two sections. Without it
 they render as unavailable and everything else works.
 
-### 2. Verify
+### 3. Verify
 
 ```bash
 npm run verify
 ```
 
-This probes every endpoint the dashboard uses and prints exactly which sections will work:
+This probes the GitHub endpoints used by the dashboard and prints which sections are accessible:
 
 ```
 Org
   ✓ Organization settings
-      plan: team; 2FA required: true
+      plan: team
   ✗ Organization rulesets
-      HTTP 404: Not Found
+      Resource not accessible by integration
 ```
 
-Anything marked `✗` renders in the UI as an "Unavailable" card explaining the missing permission —
-nothing crashes and nothing is silently omitted.
+Permission-limited sections render as "Unavailable" cards in the UI.
 
-### 3. Run
+### 4. Run
 
 ```bash
 npm run dev
 ```
 
 Open http://localhost:3000.
+
+`npm run dev` starts the Python API on `127.0.0.1:8000` and Next.js on port 3000. GitHub credentials and the SQLite cache are handled by Python. Next.js renders pages and keeps thin browser-facing refresh and release routes.
 
 ## Pages
 
@@ -152,10 +164,10 @@ counting as a failure. A missing permission must never look like a security prob
 ## Development
 
 ```bash
-npm run dev      # dev server
-npm test         # unit tests for the workflow parser and score
+npm run dev      # Python API and Next.js
+npm test         # TypeScript UI helpers and Python backend tests
 npm run lint     # eslint
-npm run verify   # probe every GitHub endpoint the app depends on
+npm run verify   # probe dashboard GitHub permissions
 ```
 
 The cache lives in `.data/cache.db` (gitignored). Delete it to force a cold rescan.

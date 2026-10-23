@@ -1,6 +1,5 @@
 import Link from "next/link";
-import { getActionsInventory } from "@/lib/github/collectors/actionsInventory";
-import { isConfigured } from "@/lib/config";
+import { getActionsInventory, getBackendConfig } from "@/lib/backendClient";
 import { SetupNotice } from "@/components/SetupNotice";
 import { RefreshButton } from "@/components/RefreshButton";
 import { ActionsTable } from "./ActionsTable";
@@ -9,7 +8,7 @@ import { Badge, Card, EmptyState, Stat, Td, Th, formatAge, ratioTone } from "@/c
 export const dynamic = "force-dynamic";
 
 export default async function ActionsPage() {
-  if (!isConfigured()) {
+  if (!(await getBackendConfig()).configured) {
     return <SetupNotice message="The actions inventory needs GitHub App credentials." />;
   }
 

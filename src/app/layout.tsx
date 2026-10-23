@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { Nav } from "@/components/Nav";
-import { getConfig } from "@/lib/config";
+import { getBackendConfig } from "@/lib/backendClient";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -19,15 +19,15 @@ export const metadata: Metadata = {
   description: "Security posture across a GitHub organization",
 };
 
-function currentOrg(): string | null {
+async function currentOrg(): Promise<string | null> {
   try {
-    return getConfig().org;
+    return (await getBackendConfig()).org;
   } catch {
     return null;
   }
 }
 
-export default function RootLayout({ children }: LayoutProps<"/">) {
+export default async function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
       lang="en"
@@ -41,7 +41,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
             __html: `(function(){try{var t=localStorage.getItem('securigit-theme');if(t==='dark'||t==='hacker'||t==='light')document.documentElement.dataset.theme=t}catch(e){}})()`,
           }}
         />
-        <Nav org={currentOrg()} />
+        <Nav org={await currentOrg()} />
         <main className="min-h-screen pb-16 pt-[62px] lg:pb-0 lg:pl-[208px]">
           <div className="mx-auto w-full max-w-[1680px] px-4 py-5 sm:px-6 lg:px-7 lg:py-6">{children}</div>
         </main>

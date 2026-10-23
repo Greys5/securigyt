@@ -1,5 +1,4 @@
-import { getRepoInventory } from "@/lib/github/collectors/repos";
-import { isConfigured } from "@/lib/config";
+import { getRepoInventory, getBackendConfig } from "@/lib/backendClient";
 import { SetupNotice } from "@/components/SetupNotice";
 import { RefreshButton } from "@/components/RefreshButton";
 import { RepoTable } from "./RepoTable";
@@ -17,7 +16,7 @@ function first(value: string | string[] | undefined): string | undefined {
 }
 
 export default async function ReposPage({ searchParams }: ReposPageProps) {
-  if (!isConfigured()) {
+  if (!(await getBackendConfig()).configured) {
     return <SetupNotice message="Repository inventory needs GitHub App credentials." />;
   }
 

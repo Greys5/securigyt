@@ -1,18 +1,16 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import Link from "next/link";
-import type { RepoSummary } from "@/lib/github/collectors/repos";
-import { assessRepository, assessmentCsv, type AssessmentStatus } from "@/lib/securityAssessment";
+import { assessmentCsv, type AssessmentFinding, type AssessmentStatus } from "@/lib/securityAssessment";
 import { Badge, EmptyState } from "@/components/ui";
 
 const tones = { observed: "ok", gap: "bad", conditional: "warn", "not assessed": "muted" } as const;
 
-export function Assessment({ repos, org, fetchedAt, stale }: { repos: RepoSummary[]; org: string; fetchedAt: number; stale: boolean }) {
+export function Assessment({ findings, org, fetchedAt, stale }: { findings: AssessmentFinding[]; org: string; fetchedAt: number; stale: boolean }) {
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState("all");
   const [lens, setLens] = useState("SDLC");
-  const findings = useMemo(() => repos.filter((r) => !r.archived).flatMap(assessRepository), [repos]);
   const visible = findings.filter((f) => (status === "all" || f.status === status) && Object.values(f).join(" ").toLowerCase().includes(query.trim().toLowerCase()));
   const download = () => {
     const url = URL.createObjectURL(new Blob([assessmentCsv(visible)], { type: "text/csv;charset=utf-8" }));
