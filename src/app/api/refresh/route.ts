@@ -1,7 +1,8 @@
 /** Invalidates cached scopes so the next render refetches from GitHub. */
 
 import { NextResponse } from "next/server";
-import { invalidate, type CacheScope } from "@/lib/cache";
+import { refreshBackend } from "@/lib/backendClient";
+import type { CacheScope } from "@/lib/cache";
 import { revalidatePath } from "next/cache";
 
 const VALID_SCOPES: CacheScope[] = [
@@ -34,14 +35,9 @@ export async function POST(request: Request) {
     VALID_SCOPES.includes(s as CacheScope),
   );
 
-  let cleared = 0;
-  if (scopes.length === 0) {
-    cleared = invalidate();
-  } else {
-    for (const scope of scopes) cleared += invalidate(scope, body.key);
-  }
+  const result = await refreshBackend(scopes, body.key);
 
   if (body.path) revalidatePath(body.path);
 
-  return NextResponse.json({ cleared, scopes: scopes.length ? scopes : "all" });
+  return NextResponse.json(result);
 }

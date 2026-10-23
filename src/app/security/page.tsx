@@ -1,8 +1,7 @@
 import Link from "next/link";
 import { repositoryAuditHrefForCheck } from "@/lib/remediationLinks";
-import { getPosture } from "@/lib/github/collectors/posture";
+import { getPosture, getBackendConfig } from "@/lib/backendClient";
 import { SEVERITIES, type AlertsSummary, type RepoAlertCounts } from "@/lib/github/collectors/security";
-import { isConfigured } from "@/lib/config";
 import { SetupNotice } from "@/components/SetupNotice";
 import { RefreshButton } from "@/components/RefreshButton";
 import {
@@ -116,7 +115,7 @@ function AlertsCard({
 }
 
 export default async function SecurityPage() {
-  if (!isConfigured()) {
+  if (!(await getBackendConfig()).configured) {
     return <SetupNotice message="The security hub needs GitHub App credentials." />;
   }
 

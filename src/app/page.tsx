@@ -2,13 +2,9 @@ import { ArrowClockwise, Info } from "@phosphor-icons/react/dist/ssr";
 import { DashboardOverview, type OverviewFinding } from "@/components/DashboardOverview";
 import { RefreshButton } from "@/components/RefreshButton";
 import { SetupNotice } from "@/components/SetupNotice";
-import { getActionsInventory } from "@/lib/github/collectors/actionsInventory";
-import { getOrgOverview } from "@/lib/github/collectors/org";
-import { getPosture } from "@/lib/github/collectors/posture";
-import { getRepoInventory } from "@/lib/github/collectors/repos";
+import { getActionsInventory, getBackendConfig, getOrgOverview, getPosture, getRepoInventory } from "@/lib/backendClient";
 import type { CheckId } from "@/lib/score";
 import { formatAge } from "@/components/ui";
-import { getConfig, isConfigured } from "@/lib/config";
 
 export const dynamic = "force-dynamic";
 
@@ -38,9 +34,9 @@ function severityFor(id: CheckId, affected: number, measured: number): OverviewF
 }
 
 export default async function Home() {
-  if (!isConfigured()) return <SetupNotice message="SecuriGit needs credentials to read your organization." />;
-
-  const { org } = getConfig();
+  const settings = await getBackendConfig();
+  if (!settings.configured) return <SetupNotice message="SecuriGit needs credentials to read your organization." />;
+  const { org } = settings;
   const [posture, actions, orgOverview, inventory] = await Promise.all([
     getPosture(),
     getActionsInventory(),

@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getRepoDetail } from "@/lib/github/collectors/repoDetail";
-import { isConfigured } from "@/lib/config";
+import { getRepoDetail, getBackendConfig } from "@/lib/backendClient";
 import { SetupNotice } from "@/components/SetupNotice";
 import { RefreshButton } from "@/components/RefreshButton";
 import {
@@ -14,7 +13,7 @@ import {
   formatAge,
   type Tone,
 } from "@/components/ui";
-import { computeScore, type CheckId, type Grade } from "@/lib/score";
+import type { CheckId, Grade } from "@/lib/score";
 import { repositoryAuditHrefForCheck } from "@/lib/remediationLinks";
 import { WorkflowList } from "./WorkflowList";
 import { RulesetList } from "./RulesetList";
@@ -90,7 +89,7 @@ function ProtectionSummary({
 }
 
 export default async function RepoDetailPage({ params }: PageProps<"/repos/[name]">) {
-  if (!isConfigured()) {
+  if (!(await getBackendConfig()).configured) {
     return <SetupNotice message="Repository detail needs GitHub App credentials." />;
   }
 
@@ -118,17 +117,7 @@ export default async function RepoDetailPage({ params }: PageProps<"/repos/[name
     : [];
 
   // The detail page knows more than the org scan does, so score with everything.
-  const score = computeScore({
-    repo: summary,
-    actionRefs: { total: allUses.length, unpinned: unpinned.length },
-    security: security.available
-      ? {
-          secretScanning: security.data.secretScanning === "enabled",
-          pushProtection: security.data.secretScanningPushProtection === "enabled",
-        }
-      : undefined,
-    adminCollaborators: collaborators.available ? admins.length : undefined,
-  });
+  const score = detail.score;
 
   return (
     <div className="space-y-5">

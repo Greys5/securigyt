@@ -1,5 +1,4 @@
-import { getOrgOverview } from "@/lib/github/collectors/org";
-import { isConfigured } from "@/lib/config";
+import { getOrgOverview, getBackendConfig } from "@/lib/backendClient";
 import { SetupNotice } from "@/components/SetupNotice";
 import { RefreshButton } from "@/components/RefreshButton";
 import {
@@ -58,7 +57,7 @@ function BoolBadge({
 }
 
 export default async function OrgPage() {
-  if (!isConfigured()) {
+  if (!(await getBackendConfig()).configured) {
     return <SetupNotice message="Organization settings need GitHub App credentials." />;
   }
 
