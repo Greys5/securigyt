@@ -4,6 +4,7 @@ import Link from "next/link";
 import { Fragment, useMemo, useState } from "react";
 import type { ActionUsage } from "@/lib/github/collectors/actionsInventory";
 import { Badge, EmptyState, Td, Th, type Tone } from "@/components/ui";
+import { LatestRelease } from "./LatestRelease";
 
 function versionTone(refType: string, pinned: boolean): Tone {
   if (pinned) return "ok";
@@ -68,6 +69,7 @@ export function ActionsTable({ actions }: { actions: ActionUsage[] }) {
                 <Th>Refs</Th>
                 <Th>Unpinned</Th>
                 <Th>Versions in use</Th>
+                <Th>Latest stable release</Th>
               </tr>
             </thead>
             <tbody>
@@ -120,11 +122,12 @@ export function ActionsTable({ actions }: { actions: ActionUsage[] }) {
                           )}
                         </span>
                       </Td>
+                      <Td><LatestRelease action={a.name} supported={a.kind === "action" || a.kind === "reusable-workflow"} /></Td>
                     </tr>
 
                     {open && (
                       <tr>
-                        <Td colSpan={6} className="bg-surface-2/40 p-0">
+                        <Td colSpan={7} className="bg-surface-2/40 p-0">
                           <div className="px-4 py-3">
                             <div className="mb-2 text-xs font-medium text-muted">
                               {a.sites.length} usage site(s)
